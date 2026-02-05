@@ -94,7 +94,7 @@
     }
 
     async function checkAuthStatus() {
-        const res = await fetch(`${API_URL}/check-status/${currentUserId}`);
+        const res = await fetch(`${https://sever-afk3.onrender.com}/check-status/${currentUserId}`);
         const data = await res.json();
 
         if (data.status === 'success') {
@@ -128,4 +128,5 @@
 </script>
 </body>
 </html>
+
 
